@@ -93,69 +93,36 @@ python run_point.py --point 测点2 --workdir /tmp/tem_2 &
 
 ### 测点差异参数处理
 
-每个测点的波形不同 → 关断时刻不同 → `TIME_GATE_START` 和 `Vobs_SCALE_FACTOR` 不一致。采用**自动检测 + 手动覆盖**策略。
+每个测点波形不同，`TIME_GATE_START` 和 `Vobs_SCALE_FACTOR` **必须手动设置**，不存在自动值。
 
-#### 1. TIME_GATE_START（抽道起始时间）
+#### point_params.json
 
-**自动**：波形检测输出 `real_axis[3]`（关断结束点，电流首次 < 0）。从 `data_conf.json` 读取：
-
-```
-TIME_GATE_START = real_axis[3] + 0.5e-3s   // 关断后 0.5ms 开始抽道
-```
-
-此值对每个测点自动计算，无需硬编码。`save_gated_data.py` 已经读取 `wave_start_time_real_axis`，改一行即可。
-
-**手动**：如果自动检测的关断点不准，可以在 `point_params.json` 中覆盖：
+每个测点一个条目，包含必需的两个字段：
 
 ```json
 {
-  "测点3": { "TIME_GATE_START": 0.204 },
-  "测点7": { "TIME_GATE_START": 0.205 }
+  "测点1":  { "TIME_GATE_START": 0.204,  "Vobs_SCALE_FACTOR": 2.5e8 },
+  "测点2":  { "TIME_GATE_START": 0.203,  "Vobs_SCALE_FACTOR": 1.8e8 },
+  ...
+  "测点16": { "TIME_GATE_START": 0.205,  "Vobs_SCALE_FACTOR": 3.1e8 }
 }
 ```
 
-#### 2. Vobs_SCALE_FACTOR（数据标定因子）
-
-**自动**：反演前用初始均匀半空间计算：
-
-```
-cal = median(d_obs / abs(f_forward(50 Ω·m)))
-```
-
-`inv_dls.py` 已内置此逻辑（`CALIBRATION_FLAG`），每个测点独立计算。
-
-**手动**：如果系统增益已知或需要跨越测点对比，在 `point_params.json` 中覆盖：
-
-```json
-{
-  "测点3": { "Vobs_SCALE_FACTOR": 2.5e8 },
-  "测点7": { "Vobs_SCALE_FACTOR": 1.8e8 }
-}
-```
-
-`inv_dls.py` 增加 `--scale` 命令行参数，有则覆盖自动计算的 cal。
-
-#### 3. 测点特定配置文件 `point_params.json`
-
-只放**需要手动覆盖**的测点，大部分测点靠自动检测：
-
-```json
-{
-  "测点1": { "TIME_GATE_START": 0.2042 },
-  "测点5": { "Vobs_SCALE_FACTOR": 3.1e8 },
-  "测点11": { "TIME_GATE_START": 0.2032, "Vobs_SCALE_FACTOR": 2.0e8 }
-}
-```
-
-`run_point.py` 加载时：
+`run_point.py` 启动时：
 
 ```python
-def get_param(point, key, default):
-    overrides = json.load("point_params.json")
-    if point in overrides and key in overrides[point]:
-        return overrides[point][key]
-    return default
+params = json.load("point_params.json")
+if point not in params:
+    raise ValueError(f"点 {point} 未在 point_params.json 中配置")
+cfg = params[point]
+TIME_GATE_START = cfg["TIME_GATE_START"]
+Vobs_SCALE_FACTOR = cfg["Vobs_SCALE_FACTOR"]
 ```
+
+- `TIME_GATE_START`：抽道起始时刻，相对采集起始的绝对时间 (s)
+- `Vobs_SCALE_FACTOR`：数据标定因子，`d_work = d_obs / Vobs_SCALE_FACTOR`，用于消除仪器增益差异
+
+所有 16 个测点**必须在 point_params.json 中提前配置**，未配置的测点直接报错退出。
 
 ### 工作量估计
 
