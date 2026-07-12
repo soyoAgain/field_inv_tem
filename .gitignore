@@ -7,3 +7,4 @@ inversion_result_global.json
 __pycache__/
 fig/*.png
 inversion_result.json
+0.txt
