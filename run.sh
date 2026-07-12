@@ -16,8 +16,12 @@ echo "[1/3] Log-spaced time gating ..."
 python save_gated_data.py
 
 echo
-echo "[2/3] Gauss-Newton inversion ..."
+echo "[2/4] DLS inversion ..."
 python inv_dls.py
+
+echo
+echo "[3/4] Plotting results ..."
+python plot_inv.py
 
 echo
 echo "=================================="

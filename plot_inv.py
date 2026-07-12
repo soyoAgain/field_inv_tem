@@ -18,6 +18,9 @@ sys.path.insert(0, str(_LOCAL.parent))
 sys.path.insert(0, str(_LOCAL))
 
 FIG_DIR = _LOCAL / "fig" / "fig_inv"
+if FIG_DIR.exists():
+    import shutil
+    shutil.rmtree(FIG_DIR)
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 _cjk_font = None
@@ -72,6 +75,7 @@ def _plot_one_iteration(args):
             from tem_wrapper import tem_forward
             fwd = tem_forward(np.array(rho_list), np.diff(depths))
             cal = float(np.median(np.abs(d_obs) / np.maximum(np.abs(fwd), 1e-30)))
+            
             t_ms = np.array(t_gate) * 1e3
             ax.loglog(t_ms, np.abs(d_obs), ".", markersize=3, color="gray", alpha=0.5, label="Observed")
             ax.loglog(t_ms, np.abs(fwd * cal), "-", linewidth=1.5, color="C3", label="Forward")

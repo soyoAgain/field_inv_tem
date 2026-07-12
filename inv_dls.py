@@ -17,7 +17,7 @@ sample_time_abs = data_conf["gated_time_abs"]
 sample_Vobs = data_conf["gated_rx"]
 
 sample_Vobs = np.array(sample_Vobs, dtype=float)
-
+sample_Vobs = sample_Vobs * config.Vobs_SCALE_FACTOR
 nlayer = config.N_LAYERS
 
 
