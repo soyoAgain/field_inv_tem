@@ -8,3 +8,4 @@ __pycache__/
 fig/*.png
 inversion_result.json
 0.txt
+results/

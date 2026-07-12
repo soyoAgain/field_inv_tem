@@ -16,8 +16,9 @@ import numpy as np
 _LOCAL = Path(__file__).resolve().parent
 sys.path.insert(0, str(_LOCAL.parent))
 sys.path.insert(0, str(_LOCAL))
+from config import RESULTS_DIR, N_LAYERS, LAYER_THICKNESS
 
-FIG_DIR = _LOCAL / "fig" / "fig_inv"
+FIG_DIR = RESULTS_DIR / "fig_inv"
 if FIG_DIR.exists():
     import shutil
     shutil.rmtree(FIG_DIR)
@@ -108,7 +109,7 @@ def _plot_rms_convergence(rms_hist):
 
 
 def main():
-    with open(_LOCAL / "inversion_result.json", encoding="utf-8") as f:
+    with open(RESULTS_DIR / "inversion_result.json", encoding="utf-8") as f:
         result = json.load(f)
 
     rho_hist = result.get("rho_history", [])
@@ -117,11 +118,10 @@ def main():
     print(f"Loaded {n_iter} iterations")
 
     # Depths
-    from config import N_LAYERS, LAYER_THICKNESS
     depths = np.cumsum(np.concatenate(([0.0], np.full(N_LAYERS - 1, LAYER_THICKNESS))))
 
     # Observed data (for forward comparison)
-    conf = json.loads((_LOCAL / "data_conf.json").read_text())
+    conf = json.loads((RESULTS_DIR / "data_conf.json").read_text())
     t_gate = conf.get("gated_time", None)
     d_obs = conf.get("gated_rx", None)
 

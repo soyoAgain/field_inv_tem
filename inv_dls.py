@@ -9,7 +9,8 @@ from tem_wrapper import tem_forward
 
 
 _LOCAL = Path(__file__).resolve().parent
-with open(_LOCAL / "data_conf.json", "r", encoding="utf-8") as f:
+_RESULTS = config.RESULTS_DIR
+with open(_RESULTS / "data_conf.json", "r", encoding="utf-8") as f:
     data_conf = json.load(f)
 
 sample_time = data_conf["gated_time"]
@@ -102,7 +103,7 @@ result = {
     "n_iterations": len(rms_hist),
     "calibration": 1.0,
 }
-with open(_LOCAL / "inversion_result.json", "w", encoding="utf-8") as f:
+with open(_RESULTS / "inversion_result.json", "w", encoding="utf-8") as f:
     json.dump(result, f, ensure_ascii=False, indent=2)
 print(f"\nSaved to inversion_result.json, best_rms={best_rms:.4e}")
 

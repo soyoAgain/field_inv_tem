@@ -34,6 +34,11 @@ LAMBDA_DECREASE = 0.8  # 更新被接受后阻尼参数的乘法缩小系数
 # DLS_LINESEARCH_PICK_BEST = True  # True=选择所有试探步长中 RMS 最低者，False=接受首个下降步长
 # DLS_DIAGONAL_FLOOR = 1e-6  # 正则矩阵对角稳定项及阻尼参数允许的最小值
 TARGET_POINT = "测点11"  # 当前处理的测点名称，用于日志及结果文件元数据
+
+# ---- Output ----
+from pathlib import Path
+RESULTS_DIR = Path(__file__).resolve().parent / "results" / TARGET_POINT
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 CONSTRAINT_TYPE = "DLS"  # 当前反演约束类型，使用大写字符串标识 DLS 约束
 # ---- Coil parameters ----
 TX_RADIUS = 0.5       # 发射线圈半径 (m)

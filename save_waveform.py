@@ -9,7 +9,7 @@ import numpy as np
 _LOCAL = Path(__file__).resolve().parent
 sys.path.insert(0, str(_LOCAL))
 
-from config import SOURCE_DATA_PATH, CURRENT_SCALE
+from config import SOURCE_DATA_PATH, CURRENT_SCALE, RESULTS_DIR
 
 sys.path.insert(0, str(_LOCAL.parent))
 from data_loader import discover_sy6_records, DEFAULT_SY6_DIR
@@ -55,14 +55,17 @@ key_times = np.array([t_full[i1], t_full[i2], t_full[i3], t_full[i4]], dtype=flo
 key_amps = np.array([current_raw[i1], current_raw[i2], current_raw[i3], current_raw[i4]], dtype=float)
 waveform_time_origin = float(key_times[0])
 
-data = {
+out = RESULTS_DIR / "data_conf.json"
+if out.exists():
+    data = json.loads(out.read_text(encoding="utf-8"))
+else:
+    data = {}
+data.update({
     "wave_start_time": (key_times - waveform_time_origin).tolist(),
     "wave_amp": key_amps.tolist(),
     "wave_start_time_real_axis": key_times.tolist(),
     "waveform_time_origin": waveform_time_origin,
-}
-
-out = _LOCAL / "data_conf.json"
+})
 out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 print(f"Saved waveform to {out}")
 print(f"  waveform_time_origin: {waveform_time_origin*1e3:.4f} ms")

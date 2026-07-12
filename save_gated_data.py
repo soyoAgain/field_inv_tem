@@ -32,11 +32,11 @@ plt.rcParams["axes.unicode_minus"] = False
 from config import (
     SOURCE_DATA_PATH, DATA_FILE_STEM,
     TIME_GATE_START, TIME_GATE_END, TIME_GATE_COUNT,
-    USE_DENOISED, CURRENT_SCALE,
+    USE_DENOISED, CURRENT_SCALE, RESULTS_DIR,
 )
-FIG_DIR = _LOCAL / "fig"
-FIG_DIR.mkdir(exist_ok=True)
-CONF_PATH = _LOCAL / "data_conf.json"
+FIG_DIR = RESULTS_DIR / "fig"
+FIG_DIR.mkdir(parents=True, exist_ok=True)
+CONF_PATH = RESULTS_DIR / "data_conf.json"
 DATA_DIR = Path(SOURCE_DATA_PATH)
 
 # ---- Load waveform data ----
