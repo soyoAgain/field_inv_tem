@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+fig/
+inversion_result.json
+inversion_result_global.json
+__pycache__/
+fig/*.png
+inversion_result.json
