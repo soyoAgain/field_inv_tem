@@ -91,11 +91,78 @@ python run_point.py --point 测点2 --workdir /tmp/tem_2 &
 - **电阻率断面图**：pcolormesh（测点为 x 轴，深度为 y 轴，颜色为 lg(ρ)）
 - **数据拟合曲线**：选取典型测点，绘制观测 vs 正演
 
+### 测点差异参数处理
+
+每个测点的波形不同 → 关断时刻不同 → `TIME_GATE_START` 和 `Vobs_SCALE_FACTOR` 不一致。采用**自动检测 + 手动覆盖**策略。
+
+#### 1. TIME_GATE_START（抽道起始时间）
+
+**自动**：波形检测输出 `real_axis[3]`（关断结束点，电流首次 < 0）。从 `data_conf.json` 读取：
+
+```
+TIME_GATE_START = real_axis[3] + 0.5e-3s   // 关断后 0.5ms 开始抽道
+```
+
+此值对每个测点自动计算，无需硬编码。`save_gated_data.py` 已经读取 `wave_start_time_real_axis`，改一行即可。
+
+**手动**：如果自动检测的关断点不准，可以在 `point_params.json` 中覆盖：
+
+```json
+{
+  "测点3": { "TIME_GATE_START": 0.204 },
+  "测点7": { "TIME_GATE_START": 0.205 }
+}
+```
+
+#### 2. Vobs_SCALE_FACTOR（数据标定因子）
+
+**自动**：反演前用初始均匀半空间计算：
+
+```
+cal = median(d_obs / abs(f_forward(50 Ω·m)))
+```
+
+`inv_dls.py` 已内置此逻辑（`CALIBRATION_FLAG`），每个测点独立计算。
+
+**手动**：如果系统增益已知或需要跨越测点对比，在 `point_params.json` 中覆盖：
+
+```json
+{
+  "测点3": { "Vobs_SCALE_FACTOR": 2.5e8 },
+  "测点7": { "Vobs_SCALE_FACTOR": 1.8e8 }
+}
+```
+
+`inv_dls.py` 增加 `--scale` 命令行参数，有则覆盖自动计算的 cal。
+
+#### 3. 测点特定配置文件 `point_params.json`
+
+只放**需要手动覆盖**的测点，大部分测点靠自动检测：
+
+```json
+{
+  "测点1": { "TIME_GATE_START": 0.2042 },
+  "测点5": { "Vobs_SCALE_FACTOR": 3.1e8 },
+  "测点11": { "TIME_GATE_START": 0.2032, "Vobs_SCALE_FACTOR": 2.0e8 }
+}
+```
+
+`run_point.py` 加载时：
+
+```python
+def get_param(point, key, default):
+    overrides = json.load("point_params.json")
+    if point in overrides and key in overrides[point]:
+        return overrides[point][key]
+    return default
+```
+
 ### 工作量估计
 
 | 任务 | 时间 |
 |------|------|
 | 模块参数化（接受测点名） | 20 min |
+| `point_params.json` + 自动检测逻辑 | 15 min |
 | `run_point.py` 单点脚本 | 15 min |
 | `run_all.sh` 调度脚本 | 5 min |
 | `plot_all.py` 汇总可视化 | 20 min |
