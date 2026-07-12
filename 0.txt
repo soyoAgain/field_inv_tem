@@ -1,0 +1,61 @@
+claude --resume fcf01af2-b93a-43e6-87b8-0e9d679ed956
+opencode -s ses_0ba5dbf45ffeYC9XMdFlGIq3y6
+
+
+开发可以用于现场数据反演的瞬变电磁正演函数
+
+1、原始数据：
+/Users/xiechushu/project/EM_app/TEM_app/data/sy6
+
+电流衰减倍数：500
+发射线圈半径：0.5m 8匝
+接收线圈半径：0.2m 90匝
+偏心距：0.58m
+接收线圈高度：10cm
+发射线圈高度：0
+
+2、可以参考：
+用于仿真的瞬变电磁正演函数：
+/Users/xiechushu/project/Joint_inversion_for_simulation/src/physic_tem.py
+
+对现场数据进行正演：
+/Users/xiechushu/project/py_tem_fdem/思源湖数据/思源湖现场反演/forwardprocess.py
+/Users/xiechushu/project/fortran_json_test/forwardprocess_TEM_.f90
+
+
+JACOBIAN_STEP
+
+绘制不同JACOBIAN_STEP，的相对误差
+相对误差随JACOBIAN_STEP的变化
+范围：1e-7到1e1
+/Users/xiechushu/project/EM_app/TEM_field_forward/point11/test_jacob_cal.py
+
+
+
+
+
+
+
+
+/Users/xiechushu/project/EM_app/TEM_field_forward/point11/plot_inv.py
+1、根据inversion_result.json 绘制每一次迭代的反演和正演结果
+subfig1:反演结果
+subfig2:正演和观测值
+参考：/Users/xiechushu/project/py_tem_fdem/思源湖数据/思源湖现场反演/思源湖反演/plot_inv_result.py
+2、绘制rms随迭代次数的变化
+结果保存到/Users/xiechushu/project/EM_app/TEM_field_forward/point11/fig/fig_inv
+绘图过程使用并行加速
+
+
+
+
+
+
+
+
+
+
+
+
+
+

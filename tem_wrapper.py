@@ -31,7 +31,7 @@ _conf = json.loads((_LOCAL / "data_conf.json").read_text(encoding="utf-8"))
 _WAVE_TIMES = np.array(_conf["wave_start_time"], dtype=float)
 _WAVE_AMPS = np.array(_conf["wave_amp"], dtype=float)
 _GATED_TIME = np.array(_conf["gated_time"], dtype=float)
-
+_GATED_TIME_ABS = np.array(_conf["gated_time_abs"], dtype=float)
 
 def tem_forward(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     """TEM forward response using Fortran engine.
@@ -53,7 +53,8 @@ def tem_forward(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     nt = _GATED_TIME.size
 
     time_arr, resp_arr = forward_Fortran_TEM_log_time_aligned(
-        log_time_sample=_GATED_TIME,
+        log_time_sample=_GATED_TIME_ABS,
+        # 为什么把log_time_sample替换为_GATED_TIME_ABS和_GATED_TIME对正演效果没有任何影响？可以检查/Users/xiechushu/project/fortran_forward_log_sample_aligned/tem_forward_log_sample_aligned.f90
         rho=rho,
         hh=hh,
         nlayer=nlayer,

@@ -37,9 +37,10 @@ def jacobian(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     for j in range(nlayer):
         m_neg = m_inv.copy()
         m_pos = m_inv.copy()
-        dm = JACOBIAN_STEP * m_inv[j]
-        if abs(dm) < 1e-12:
-            dm = JACOBIAN_STEP * 1.0
+        # dm = JACOBIAN_STEP * m_inv[j]
+        dm = JACOBIAN_STEP 
+        # if abs(dm) < 1e-12:
+        #     dm = JACOBIAN_STEP * 1.0
         m_neg[j] -= dm
         m_pos[j] += dm
 

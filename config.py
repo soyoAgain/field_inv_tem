@@ -10,16 +10,21 @@ TIME_GATE_END = 20e-3  # 对数抽道终止时刻，相对脉冲起点，单位 
 TIME_GATE_COUNT = 64  # 起止时刻之间的对数等间隔抽道数量
 
 # ---- Jacobian ----
-JACOBIAN_STEP = 6e-4  # log10(rho) 中心差分的相对扰动系数
+JACOBIAN_STEP = 4.89e-03  # 最优绝对扰动 (sweep, spike layer 5, rel_err ~12%)
 
 # ---- Inversion ----
 N_LAYERS = 20  # 反演模型总层数，包含最底部半空间
 LAYER_THICKNESS = 0.5  # 除最底层外各层的固定厚度，单位 m
 MAX_ITER = 50  # DLS 反演允许的最大迭代次数
-LAMBDA_INITIAL = 0.1  # DLS 正则化/阻尼参数的初始值
-LAMBDA_DECREASE = 0.3  # 更新被接受后阻尼参数的乘法缩小系数
+LAMBDA_INITIAL = 1  # DLS 正则化/阻尼参数的初始值
+
+
+LAMBDA_DECREASE = 1  # 更新被接受后阻尼参数的乘法缩小系数
+
+
+
 LAMBDA_INCREASE = 3.0  # 更新被拒绝后阻尼参数的乘法放大系数
-LOG10_RHO_MIN = -3.0  # 电阻率下界的 log10 值，对应 1e-3 Ω·m
+LOG10_RHO_MIN = -4.0  # 电阻率下界的 log10 值，对应 1e-4 Ω·m
 LOG10_RHO_MAX = 5.0  # 电阻率上界的 log10 值，对应 1e5 Ω·m
 CALIBRATION_FLAG = True  # True=标定观测数据后反演，False=直接使用原始 log-space 数据
 DLS_USE_GLOBAL_INIT = True  # True=优先用全局优化结果初始化 DLS，False=使用均匀初始模型
