@@ -73,7 +73,7 @@ def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
                    - np.log10(np.maximum(np.abs(fn), 1e-30))) / (2.0 * dm)
 
     J = np.zeros((nt, nlayer))
-    max_workers = min(nlayer, 8)
+    max_workers = min(nlayer, 10)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_worker, j): j for j in range(nlayer)}
         for future in as_completed(futures):
@@ -83,11 +83,38 @@ def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
 
 
 if __name__ == "__main__":
-    rho = np.array([50.0, 100.0, 10.0, 500.0, 200.0, 30.0])
-    thickness = np.array([3.0, 5.0, 2.0, 4.0, 1.0])
+    import time
+    from config import N_LAYERS, LAYER_THICKNESS
+
+    rho = np.logspace(np.log10(10), np.log10(500), N_LAYERS)
+    thickness = np.full(N_LAYERS - 1, LAYER_THICKNESS)
+
+    # Accuracy
     Jf = jacobian(rho, thickness)
     Jn = jacobian_numba(rho, thickness, parallel=False)
-    print(f"J shape: {Jf.shape}")
+    print(f"{N_LAYERS} layers, J shape: {Jf.shape}")
     print(f"jacobian (Fortran) norm: {np.linalg.norm(Jf):.4e}")
     print(f"jacobian_numba norm:       {np.linalg.norm(Jn):.4e}")
     print(f"max|diff| = {np.abs(Jf - Jn).max():.2e}")
+
+    # Speed
+    n_bench = 5
+    t0 = time.perf_counter()
+    for _ in range(n_bench):
+        jacobian(rho, thickness)
+    dt_f = (time.perf_counter() - t0) / n_bench
+
+    t0 = time.perf_counter()
+    for _ in range(n_bench):
+        jacobian_numba(rho, thickness, parallel=False)
+    dt_n = (time.perf_counter() - t0) / n_bench
+
+    t0 = time.perf_counter()
+    for _ in range(n_bench):
+        jacobian_numba(rho, thickness, parallel=True)
+    dt_np = (time.perf_counter() - t0) / n_bench
+
+    print(f"\nSpeed ({n_bench} runs avg):")
+    print(f"  jacobian (Fortran):        {dt_f*1e3:.1f}ms")
+    print(f"  jacobian_numba (serial):   {dt_n*1e3:.1f}ms")
+    print(f"  jacobian_numba (parallel): {dt_np*1e3:.1f}ms")

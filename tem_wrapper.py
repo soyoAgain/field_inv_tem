@@ -120,6 +120,10 @@ if __name__ == "__main__":
     # 对比tem_forward_numba和tem_forward
     rho = np.array([100.0])
     thickness = np.empty(0)
-    resp = tem_forward(rho, thickness)
-    print(f"Half-space 100 Ω·m: {len(resp)} points")
-    print(f"  range: [{resp.min():.4e}, {resp.max():.4e}]")
+    resp_f = tem_forward(rho, thickness)
+    resp_n = tem_forward_numba(rho, thickness)
+    diff = np.abs(resp_f - resp_n)
+    print(f"Half-space 100 Ω·m: {len(resp_f)} points")
+    print(f"  Fortran:     [{resp_f.min():.4e}, {resp_f.max():.4e}]")
+    print(f"  Numba:       [{resp_n.min():.4e}, {resp_n.max():.4e}]")
+    print(f"  max|diff| =  {diff.max():.2e}")
