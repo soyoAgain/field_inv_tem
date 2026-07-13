@@ -26,12 +26,22 @@ if _fortran_dir.exists():
 
 from forwardprocess import forward_Fortran_TEM_log_time_aligned
 
+from tem_forward_1d import forwardprocess, get_hankel_filter, get_frt_filter
+
 # Load data_conf once at module level
 _conf = json.loads((_LOCAL / "data_conf.json").read_text(encoding="utf-8"))
 _WAVE_TIMES = np.array(_conf["wave_start_time"], dtype=float)
 _WAVE_AMPS = np.array(_conf["wave_amp"], dtype=float)
 _GATED_TIME = np.array(_conf["gated_time"], dtype=float)
 _GATED_TIME_ABS = np.array(_conf["gated_time_abs"], dtype=float)
+
+# Pre-compute waveform p1-p4 (ns_id=1 format) and filters for numba forward
+_p1 = _WAVE_TIMES[:1].repeat(2).copy(); _p1[1] = _WAVE_AMPS[0]
+_p2 = _WAVE_TIMES[1:2].repeat(2).copy(); _p2[1] = _WAVE_AMPS[1]
+_p3 = _WAVE_TIMES[2:3].repeat(2).copy(); _p3[1] = _WAVE_AMPS[2]
+_p4 = _WAVE_TIMES[3:4].repeat(2).copy(); _p4[1] = _WAVE_AMPS[3]
+_HANKEL_FILT = get_hankel_filter()
+_FRT_FILT = get_frt_filter()
 
 def tem_forward(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     """TEM forward response using Fortran engine.
@@ -76,7 +86,38 @@ def tem_forward(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     return resp_arr
 
 
+def tem_forward_numba(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
+    """TEM forward response using Python+numba engine (forwardprocess).
+
+    Args:
+        rho:       resistivity array, shape (n_layers,), unit: Ω·m
+        thickness: layer thickness, shape (n_layers-1,), unit: m
+
+    Returns:
+        response array, shape (n_gates,), unit: V
+    """
+    nlayer = rho.size
+    hh = np.zeros(nlayer, dtype=float)
+    if thickness.size > 0:
+        hh[: thickness.size] = thickness
+    hh[-1] = 10.0
+
+    return forwardprocess(
+        tlog_a=_GATED_TIME,
+        rho=np.asarray(rho, dtype=np.float64),
+        hh=np.asarray(hh, dtype=np.float64),
+        ns_id=1,
+        p1=_p1, p2=_p2, p3=_p3, p4=_p4,
+        ht=TX_HEIGHT,
+        t_ed=float(_GATED_TIME[-1]),
+        xr=OFFSET, hr=RX_HEIGHT, rt=TX_RADIUS, rr=RX_RADIUS,
+        nturn=TX_TURNS, nturn1=RX_TURNS, ic=3,
+        hankel_filt=_HANKEL_FILT, frt_filt=_FRT_FILT,
+    )
+
+
 if __name__ == "__main__":
+    # 对比tem_forward_numba和tem_forward
     rho = np.array([100.0])
     thickness = np.empty(0)
     resp = tem_forward(rho, thickness)
