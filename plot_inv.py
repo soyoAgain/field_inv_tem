@@ -1,10 +1,8 @@
-"""Plot each inversion iteration: resistivity model + forward-vs-observed.
-   Parallel rendering, saves to fig/fig_inv/."""
+"""Plot each inversion iteration: resistivity model + forward-vs-observed."""
 from __future__ import annotations
 
 import json
 import sys
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import matplotlib
@@ -19,10 +17,6 @@ sys.path.insert(0, str(_LOCAL))
 from config import RESULTS_DIR, N_LAYERS, LAYER_THICKNESS
 
 FIG_DIR = RESULTS_DIR / "fig_inv"
-if FIG_DIR.exists():
-    import shutil
-    shutil.rmtree(FIG_DIR)
-FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 _cjk_font = None
 for name in ["PingFang SC", "Heiti SC", "STHeiti", "SimHei", "Arial Unicode MS"]:
@@ -109,6 +103,11 @@ def _plot_rms_convergence(rms_hist):
 
 
 def main():
+    if FIG_DIR.exists():
+        import shutil
+        shutil.rmtree(FIG_DIR)
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
+
     with open(RESULTS_DIR / "inversion_result.json", encoding="utf-8") as f:
         result = json.load(f)
 
@@ -125,17 +124,14 @@ def main():
     t_gate = conf.get("gated_time", None)
     d_obs = conf.get("gated_rx", None)
 
-    # Parallel plot each iteration
+    # Serial plot each iteration to avoid concurrent access to the external forward solver
     tasks = [(i, rho_hist[i], depths.tolist(), t_gate, d_obs) for i in range(n_iter)]
-    with ProcessPoolExecutor(max_workers=6) as executor:
-        futures = {executor.submit(_plot_one_iteration, t): i for i, t in enumerate(tasks)}
-        for future in as_completed(futures):
-            i = futures[future]
-            try:
-                p = future.result()
-                print(f"  [{i+1}/{n_iter}] {p}")
-            except Exception as e:
-                print(f"  [{i+1}/{n_iter}] FAIL: {e}")
+    for i, task in enumerate(tasks):
+        try:
+            p = _plot_one_iteration(task)
+            print(f"  [{i+1}/{n_iter}] {p}")
+        except Exception as e:
+            print(f"  [{i+1}/{n_iter}] FAIL: {e}")
 
     # RMS convergence plot
     p_rms = _plot_rms_convergence(rms_hist)

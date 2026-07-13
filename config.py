@@ -1,13 +1,25 @@
 # ---- Data source ----
 import json
 from pathlib import Path
-SOURCE_DATA_PATH = '/Users/xiechushu/project/EM_app/TEM_app/data/sy6/测点16'  # 测点原始及降噪数据所在目录
-TARGET_POINT = "测点16"  # 当前处理的测点名称，用于日志及结果文件元数据
+import os
+
+_DEFAULT_TARGET_POINT = "测点16"
+_DATA_ROOT = Path('/Users/xiechushu/project/EM_app/TEM_app/data/sy6')
+TARGET_POINT = os.environ.get("TARGET_POINT", _DEFAULT_TARGET_POINT)  # 当前处理的测点名称，用于日志及结果文件元数据
+SOURCE_DATA_PATH = os.environ.get(
+    "SOURCE_DATA_PATH",
+    str(_DATA_ROOT / TARGET_POINT),
+)  # 测点原始及降噪数据所在目录
 CURRENT_SCALE = 500.0  # 数据加载时使用的电流缩放系数
 DATA_FILE_STEM = "测点11_010"  # 未使用降噪数据时读取的原始数据文件名前缀
 USE_DENOISED = True  # True=使用降噪信号，False=直接读取原始 npy 信号
 
 _point_params = json.loads(Path(__file__).resolve().with_name("point_params.json").read_text())
+if TARGET_POINT not in _point_params:
+    raise KeyError(f"未在 point_params.json 中找到测点配置: {TARGET_POINT}")
+if not Path(SOURCE_DATA_PATH).exists():
+    raise FileNotFoundError(f"测点数据目录不存在: {SOURCE_DATA_PATH}")
+
 _p = _point_params[TARGET_POINT]
 TIME_GATE_START = _p["TIME_GATE_START"]
 
