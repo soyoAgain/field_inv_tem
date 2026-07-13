@@ -41,6 +41,10 @@ def _load_point(point_dir: Path, point_params: dict[str, dict]):
     if not isinstance(iteration_number, int) or iteration_number <= 0:
         raise ValueError(f"{point_name} 的 ITERATION_NUMBER 必须是正整数，当前为 {iteration_number!r}")
 
+    rho_scale = point_conf.get("RHO_SCALE", 1.0)
+    if not isinstance(rho_scale, (int, float)) or rho_scale <= 0:
+        raise ValueError(f"{point_name} 的 RHO_SCALE 必须是正数，当前为 {rho_scale!r}")
+
     res_path = point_dir / "inversion_result.json"
     conf_path = point_dir / "data_conf.json"
     if not res_path.exists():
@@ -65,6 +69,7 @@ def _load_point(point_dir: Path, point_params: dict[str, dict]):
     return {
         "point": point_name,
         "rho": rho,
+        "rho_scale": float(rho_scale),
         "depth": depths,
         "rms_history": result.get("rms_history", []),
         "iteration_number": iteration_number,
@@ -102,7 +107,7 @@ def main():
         if data:
             print(
                 f"{data['point']}: using iteration {data['iteration_number']}/"
-                f"{len(data['rms_history'])}"
+                f"{len(data['rms_history'])}, rho_scale={data['rho_scale']:g}"
             )
             all_data.append(data)
     print(f"Loaded {len(all_data)} points")
@@ -117,7 +122,7 @@ def main():
     fig, ax = plt.subplots(figsize=(8, 7), dpi=150)
     cmap = plt.cm.tab20
     for i, d in enumerate(all_data):
-        z, r = _stair_rho(d["depth"], d["rho"])
+        z, r = _stair_rho(d["depth"], d["rho"] * d["rho_scale"])
         ax.semilogx(r, z, linewidth=1.8, color=cmap(i % 20), label=d["point"])
     ax.set_xlabel("Resistivity (ohm-m)")
     ax.set_ylabel("Depth (m)")
@@ -134,7 +139,7 @@ def main():
     n_layers = len(all_data[0]["rho"])
     rho_grid = np.zeros((n, n_layers))
     for i, d in enumerate(all_data):
-        rho_grid[i, :] = d["rho"]
+        rho_grid[i, :] = d["rho"] * d["rho_scale"]
     depths_all = np.array(all_data[0]["depth"], dtype=float)
     z_edges = np.append(depths_all, SECTION_MAX_DEPTH)
 
