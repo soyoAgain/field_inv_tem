@@ -4,7 +4,7 @@ import numpy as np
 import config
 import time
 from scipy.sparse.linalg import cg
-from jacob_cal import jacobian
+from jacob_cal import jacobian, jacobian_numba
 from tem_wrapper import tem_forward
 
 
@@ -67,7 +67,7 @@ for i in range(max_iter):
     if np.any(np.isnan(m_iter)):
         print("模型参数出现NaN，终止反演。")
         break
-    Jk = jacobian(rho_iter, hh_true)
+    Jk = jacobian_numba(rho_iter, hh_true)
     Fm = tem_forward(rho_iter, hh_true)
     if np.any(Fm <= 0):
         print("预测数据中出现非正值，终止反演。")
