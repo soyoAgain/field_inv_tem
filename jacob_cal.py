@@ -41,6 +41,18 @@ def jacobian(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     return _jacobian_serial(rho, thickness, tem_forward)
 
 
+def _worker_column(args):
+    """ProcessPool worker: compute one Jacobian column (2 forward calls)."""
+    j, m_inv, dm, rho_lin, thickness = args
+    m_neg, m_pos = m_inv.copy(), m_inv.copy()
+    m_neg[j] -= dm
+    m_pos[j] += dm
+    fn = tem_forward_numba(10.0 ** m_neg, thickness)
+    fp = tem_forward_numba(10.0 ** m_pos, thickness)
+    return j, (np.log10(np.maximum(np.abs(fp), 1e-30))
+               - np.log10(np.maximum(np.abs(fn), 1e-30))) / (2.0 * dm)
+
+
 def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
                    parallel: bool = True) -> np.ndarray:
     """Compute log-space central-difference Jacobian using Python+numba engine.
@@ -48,7 +60,7 @@ def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
     Args:
         rho:       resistivity, shape (n_layers,), Ω·m
         thickness: layer thickness, shape (n_layers-1,), m
-        parallel:  use parallel workers (ThreadPoolExecutor) for numba engine
+        parallel:  use ProcessPoolExecutor for parallelism
 
     Returns:
         J: shape (n_gates, n_layers), ∂log10(response)/∂log10(rho)
@@ -56,29 +68,20 @@ def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
     if not parallel:
         return _jacobian_serial(rho, thickness, tem_forward_numba)
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from joblib import Parallel, delayed
 
     nlayer = rho.size
-    nt = len(tem_forward_numba(rho, thickness))
     m_inv = np.log10(rho)
     dm = JACOBIAN_STEP
+    nt = len(tem_forward_numba(rho, thickness))
 
-    def _worker(j):
-        m_neg, m_pos = m_inv.copy(), m_inv.copy()
-        m_neg[j] -= dm
-        m_pos[j] += dm
-        fn = tem_forward_numba(10.0 ** m_neg, thickness)
-        fp = tem_forward_numba(10.0 ** m_pos, thickness)
-        return j, (np.log10(np.maximum(np.abs(fp), 1e-30))
-                   - np.log10(np.maximum(np.abs(fn), 1e-30))) / (2.0 * dm)
-
+    tasks = [(j, m_inv, dm, rho, thickness) for j in range(nlayer)]
+    results = Parallel(n_jobs=min(nlayer, 8))(
+        delayed(_worker_column)(t) for t in tasks
+    )
     J = np.zeros((nt, nlayer))
-    max_workers = min(nlayer, 10)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(_worker, j): j for j in range(nlayer)}
-        for future in as_completed(futures):
-            j, col = future.result()
-            J[:, j] = col
+    for j, col in results:
+        J[:, j] = col
     return J
 
 
