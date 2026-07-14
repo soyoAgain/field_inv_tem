@@ -3,11 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-point_name="${1:-}"
-if [[ -z "$point_name" ]]; then
-  echo "用法: ./run.sh 测点i"
-  exit 1
-fi
+point_name="${1:-测点11}"
 
 export TARGET_POINT="$point_name"
 export SOURCE_DATA_PATH="/Users/xiechushu/project/EM_app/TEM_app/data/sy6/$point_name"

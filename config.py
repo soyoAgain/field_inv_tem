@@ -32,13 +32,14 @@ TIME_GATE_COUNT = 64  # 起止时刻之间的对数等间隔抽道数量
 JACOBIAN_STEP = 4.89e-03  # 最优绝对扰动 (sweep, spike layer 5, rel_err ~12%)
 
 # ---- Inversion ----
-N_LAYERS = 20  # 反演模型总层数，包含最底部半空间
+N_LAYERS = 50  # 反演模型总层数，包含最底部半空间
 LAYER_THICKNESS = 0.5  # 除最底层外各层的固定厚度，单位 m
 MAX_ITER = 50  # DLS 反演允许的最大迭代次数
 LAMBDA_INITIAL = 1  # DLS 正则化/阻尼参数的初始值
 
 
 LAMBDA_DECREASE = 0.8  # 更新被接受后阻尼参数的乘法缩小系数
+INITIAL_RHO = 1e-2      # 初始模型的均匀电阻率 (Ω·m)
 
 
 

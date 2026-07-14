@@ -27,8 +27,7 @@ t_ed = float(sample_time[-1])
 # 使用 gated_time 的首尾时间和采样点数量
 nt = len(sample_time)
 
-# 设置反演初始值，每层电阻率为 1e-2 Ω·m
-rho_iter = np.full(nlayer, 1e-2, dtype=float)
+rho_iter = np.full(nlayer, config.INITIAL_RHO, dtype=float)
 hh_true = np.full(nlayer - 1, config.LAYER_THICKNESS, dtype=float)
 
 m_iter = np.log10(rho_iter) #应该用 log10还是log?

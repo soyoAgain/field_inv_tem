@@ -10,10 +10,13 @@ import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 
-RESULTS_DIR = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/results_副本")
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config import N_LAYERS, LAYER_THICKNESS
+
+RESULTS_DIR = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/results")
 OUT_DIR = RESULTS_DIR
 POINT_PARAMS_PATH = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/point_params.json")
-SECTION_MAX_DEPTH = 10.0
 
 _cjk_font = None
 for name in ["PingFang SC", "Heiti SC", "STHeiti", "SimHei", "Arial Unicode MS"]:
@@ -134,14 +137,14 @@ def main():
     fig.savefig(OUT_DIR / "profiles_iter20.png")
     plt.close(fig)
 
-    # ---- Plot 2: section (pcolormesh) ----
+    # ---- Plot 2: section (pcolormesh, finite layers only) ----
     n = len(all_data)
-    n_layers = len(all_data[0]["rho"])
-    rho_grid = np.zeros((n, n_layers))
+    n_finite = N_LAYERS - 1
+    rho_grid = np.zeros((n, n_finite))
     for i, d in enumerate(all_data):
-        rho_grid[i, :] = d["rho"] * d["rho_scale"]
+        rho_grid[i, :] = np.array(d["rho"][:n_finite]) * d["rho_scale"]
     depths_all = np.array(all_data[0]["depth"], dtype=float)
-    z_edges = np.append(depths_all, SECTION_MAX_DEPTH)
+    z_edges = depths_all[:N_LAYERS]
 
     fig, ax = plt.subplots(figsize=(12 if n > 8 else 8, 5), dpi=150)
     X, Y = np.meshgrid(np.arange(n + 1) - 0.5, z_edges)
@@ -151,7 +154,7 @@ def main():
     ax.set_xticklabels(points, rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Depth (m)")
     ax.set_title("Resistivity section — selected iteration per point")
-    ax.set_ylim(SECTION_MAX_DEPTH, 0.0)
+    ax.set_ylim(z_edges[-1], 0.0)
     fig.tight_layout()
     fig.savefig(OUT_DIR / "section_iter20.png")
     plt.close(fig)
