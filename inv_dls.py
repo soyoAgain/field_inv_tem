@@ -45,7 +45,7 @@ Wm = DEL
 # print(f"Wm shape: {Wm.shape}")
 # print(f"m_iter shape: {m_iter.shape}")
 
-constraint_type = "DLS"  # config.CONSTRAINT_TYPE if hasattr(config, 'CONSTRAINT_TYPE') else "DLS"
+constraint_type = config.CONSTRAINT_TYPE if hasattr(config, 'CONSTRAINT_TYPE') else "DLS"
 
 
 def rms_calc(Vobs: np.ndarray, F: np.ndarray) -> float:
@@ -63,11 +63,13 @@ rho_hist = []
 for i in range(max_iter):
     print(f"================== 迭代第 {i+1} 次 =================")
     start_time = time.time()
+    # 出现负值，终止反演
     if np.any(np.isnan(m_iter)):
         print("模型参数出现NaN，终止反演。")
         break
     Jk = jacobian_numba(rho_iter, hh_true)
     Fm = tem_forward(rho_iter, hh_true)
+    # 出现负值，终止反演
     if np.any(Fm <= 0):
         print("预测数据中出现非正值，终止反演。")
         break
@@ -77,6 +79,21 @@ for i in range(max_iter):
             alpha = config.LAMBDA_INITIAL
         alpha = alpha * config.LAMBDA_DECREASE
         print(f'正则化参数:{alpha}')
+    elif constraint_type == 'MGS':
+        beta = config.MGS_beta
+        grad_m = np.dot(Wm, m_iter)
+        weights = 1 / (grad_m**2 + beta**2)
+        W_diag = np.diag(weights)
+        We = np.dot(W_diag, Wm)
+        if i == 0:
+            alpha = config.LAMBDA_INITIAL_MGS
+        alpha = alpha * config.LAMBDA_DECREASE_MGS
+        pass
+    elif constraint_type == 'OCCAM':
+        We = Wm
+        if i == 0:
+            alpha = config.LAMBDA_INITIAL
+        alpha = alpha * config.LAMBDA_DECREASE
     A = np.dot(Jk.T, Jk) + alpha * np.dot(We.T, We)
     log_F = np.log10(np.maximum(np.abs(Fm), 1e-30))
     log_V = np.log10(np.maximum(np.abs(sample_Vobs), 1e-30))
@@ -84,7 +101,8 @@ for i in range(max_iter):
     b = np.dot(Jk.T, log_V - log_F)
     deltaM, info = cg(A, b, tol=1e-10, maxiter=10000)
     m_iter = m_iter + 0.5 * deltaM
-    rho_iter = 10.0 ** m_iter
+    m_iter = np.clip(m_iter, -10, 10)
+    rho_iter = np.maximum(10.0 ** m_iter, 1e-30)
     rms = rms_calc(sample_Vobs, tem_forward(rho_iter, hh_true))
     if rms < best_rms:
         best_rms = rms

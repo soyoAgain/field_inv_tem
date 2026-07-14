@@ -20,6 +20,7 @@ from tem_wrapper import tem_forward, tem_forward_numba
 
 def _jacobian_serial(rho, thickness, forward_fn):
     """serial central-difference Jacobian."""
+    rho = np.maximum(np.asarray(rho, dtype=float), 1e-30)
     nlayer = rho.size
     nt = len(forward_fn(rho, thickness))
     m_inv = np.log10(rho)
@@ -70,13 +71,14 @@ def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
 
     from joblib import Parallel, delayed
 
+    rho = np.maximum(np.asarray(rho, dtype=float), 1e-30)
     nlayer = rho.size
     m_inv = np.log10(rho)
     dm = JACOBIAN_STEP
     nt = len(tem_forward_numba(rho, thickness))
 
     tasks = [(j, m_inv, dm, rho, thickness) for j in range(nlayer)]
-    results = Parallel(n_jobs=min(nlayer, 8))(
+    results = Parallel(n_jobs=min(nlayer, 10))(
         delayed(_worker_column)(t) for t in tasks
     )
     J = np.zeros((nt, nlayer))
