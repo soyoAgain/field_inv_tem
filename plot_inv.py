@@ -46,46 +46,48 @@ def _stair_rho(depths, rho):
 def _plot_one_iteration(args):
     idx, rho_list, depths, t_gate, d_obs = args
     path = FIG_DIR / f"iter_{idx:03d}.png"
+    try:
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), dpi=120,
+                                  gridspec_kw={"width_ratios": [1, 2]})
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), dpi=120,
-                              gridspec_kw={"width_ratios": [1, 2]})
+        # subfig1: resistivity model
+        ax = axes[0]
+        z, r = _stair_rho(depths, rho_list)
+        ax.semilogx(r, z, linewidth=2, color="steelblue")
+        rmin = max(r[r > 0].min() / 2, 1e-6)
+        rmax = r.max() * 2
+        ax.set_xlim(rmin, rmax)
+        ax.set_xlabel("Resistivity (ohm-m)")
+        ax.set_ylabel("Depth (m)")
+        ax.set_title(f"Iteration {idx}")
+        ax.invert_yaxis()
+        ax.grid(True, alpha=0.3)
 
-    # subfig1: resistivity model
-    ax = axes[0]
-    z, r = _stair_rho(depths, rho_list)
-    ax.semilogx(r, z, linewidth=2, color="steelblue")
-    rmin = max(r[r > 0].min() / 2, 1e-6)
-    rmax = r.max() * 2
-    ax.set_xlim(rmin, rmax)
-    ax.set_xlabel("Resistivity (ohm-m)")
-    ax.set_ylabel("Depth (m)")
-    ax.set_title(f"Iteration {idx}")
-    ax.invert_yaxis()
-    ax.grid(True, alpha=0.3)
+        # subfig2: forward vs observed (if data available)
+        ax = axes[1]
+        if t_gate is not None and d_obs is not None:
+            try:
+                from tem_wrapper import tem_forward_numba
+                fwd = tem_forward_numba(np.array(rho_list), np.diff(depths))
+                cal = float(np.median(np.abs(d_obs) / np.maximum(np.abs(fwd), 1e-30)))
 
-    # subfig2: forward vs observed (if data available)
-    ax = axes[1]
-    if t_gate is not None and d_obs is not None:
-        try:
-            from tem_wrapper import tem_forward
-            fwd = tem_forward(np.array(rho_list), np.diff(depths))
-            cal = float(np.median(np.abs(d_obs) / np.maximum(np.abs(fwd), 1e-30)))
-            
-            t_ms = np.array(t_gate) * 1e3
-            ax.loglog(t_ms, np.abs(d_obs), ".", markersize=3, color="gray", alpha=0.5, label="Observed")
-            ax.loglog(t_ms, np.abs(fwd * cal), "-", linewidth=1.5, color="C3", label="Forward")
-            ax.legend(fontsize=7)
-        except Exception as e:
-            ax.text(0.5, 0.5, f"Forward failed:\n{e}", transform=ax.transAxes, ha="center")
-    ax.set_xlabel("Time (ms)")
-    ax.set_ylabel("|Response|")
-    ax.set_title(f"Iter {idx} — Observed vs Forward")
-    ax.grid(True, alpha=0.3)
+                t_ms = np.array(t_gate) * 1e3
+                ax.loglog(t_ms, np.abs(d_obs), ".", markersize=3, color="gray", alpha=0.5, label="Observed")
+                ax.loglog(t_ms, np.abs(fwd * cal), "-", linewidth=1.5, color="C3", label="Forward")
+                ax.legend(fontsize=7)
+            except Exception:
+                ax.text(0.5, 0.5, "Forward failed", transform=ax.transAxes, ha="center")
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylabel("|Response|")
+        ax.set_title(f"Iter {idx} — Observed vs Forward")
+        ax.grid(True, alpha=0.3)
 
-    fig.tight_layout()
-    fig.savefig(path)
-    plt.close(fig)
-    return str(path)
+        fig.tight_layout()
+        fig.savefig(path)
+        plt.close(fig)
+        return str(path)
+    except Exception:
+        return None
 
 
 def _plot_rms_convergence(rms_hist):
@@ -124,14 +126,17 @@ def main():
     t_gate = conf.get("gated_time", None)
     d_obs = conf.get("gated_rx", None)
 
-    # Serial plot each iteration to avoid concurrent access to the external forward solver
+    # Parallel plot each iteration using joblib
+    from joblib import Parallel, delayed
     tasks = [(i, rho_hist[i], depths.tolist(), t_gate, d_obs) for i in range(n_iter)]
-    for i, task in enumerate(tasks):
-        try:
-            p = _plot_one_iteration(task)
+    results = Parallel(n_jobs=-1)(
+        delayed(_plot_one_iteration)(t) for t in tasks
+    )
+    for i, p in enumerate(results):
+        if p:
             print(f"  [{i+1}/{n_iter}] {p}")
-        except Exception as e:
-            print(f"  [{i+1}/{n_iter}] FAIL: {e}")
+        else:
+            print(f"  [{i+1}/{n_iter}] FAIL")
 
     # RMS convergence plot
     p_rms = _plot_rms_convergence(rms_hist)
