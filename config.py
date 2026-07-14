@@ -34,14 +34,14 @@ JACOBIAN_STEP = 4.89e-03  # 最优绝对扰动 (sweep, spike layer 5, rel_err ~1
 # ---- Inversion ----
 N_LAYERS = 50  # 反演模型总层数，包含最底部半空间
 LAYER_THICKNESS = 0.2  # 除最底层外各层的固定厚度，单位 m
-MAX_ITER =100  # DLS 反演允许的最大迭代次数
+MAX_ITER = 50  # DLS 反演允许的最大迭代次数
 LAMBDA_INITIAL = 1  # DLS 正则化/阻尼参数的初始值
-CONSTRAINT_TYPE = "OCCAM"  # OCCAM、DLS、MGS
+CONSTRAINT_TYPE = "MGS"  # OCCAM、DLS、MGS
 
-LAMBDA_DECREASE = 0.6  # 更新被接受后阻尼参数的乘法缩小系数
+LAMBDA_DECREASE = 0.8  # 更新被接受后阻尼参数的乘法缩小系数
 INITIAL_RHO = 1e-2     # 初始模型的均匀电阻率 (Ω·m)
 MGS_beta = 0.5*1e-1
-LAMBDA_INITIAL_MGS = 1e-1
+LAMBDA_INITIAL_MGS = 10
 LAMBDA_DECREASE_MGS = 0.5
 
 

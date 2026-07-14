@@ -14,7 +14,7 @@ sys.path.insert(0, str(_LOCAL))
 from config import (
     TX_RADIUS, TX_TURNS, TX_HEIGHT,
     RX_RADIUS, RX_TURNS, RX_HEIGHT,
-    OFFSET, CURRENT_SCALE,
+    OFFSET, RESULTS_DIR,
 )
 
 # Parent for forwardprocess
@@ -29,7 +29,8 @@ from forwardprocess import forward_Fortran_TEM_log_time_aligned
 from tem_forward_1d import forwardprocess, get_hankel_filter, get_frt_filter
 
 # Load data_conf once at module level
-_conf = json.loads((_LOCAL / "data_conf.json").read_text(encoding="utf-8"))
+_conf_path = RESULTS_DIR / "data_conf.json"
+_conf = json.loads(_conf_path.read_text(encoding="utf-8"))
 _WAVE_TIMES = np.array(_conf["wave_start_time"], dtype=float)
 _WAVE_AMPS = np.array(_conf["wave_amp"], dtype=float)
 _GATED_TIME = np.array(_conf["gated_time"], dtype=float)
@@ -42,6 +43,12 @@ _p3 = _WAVE_TIMES[2:3].repeat(2).copy(); _p3[1] = _WAVE_AMPS[2]
 _p4 = _WAVE_TIMES[3:4].repeat(2).copy(); _p4[1] = _WAVE_AMPS[3]
 _HANKEL_FILT = get_hankel_filter()
 _FRT_FILT = get_frt_filter()
+
+def _load_conf():
+    """reload data_conf at call time to pick up updated gated_time."""
+    _c = json.loads(_conf_path.read_text(encoding="utf-8"))
+    return np.array(_c["gated_time"], dtype=float), np.array(_c["gated_time_abs"], dtype=float)
+
 
 def tem_forward(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     """TEM forward response using Fortran engine.
@@ -60,18 +67,19 @@ def tem_forward(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
         hh[: thickness.size] = thickness
     hh[-1] = 10.0
 
-    nt = _GATED_TIME.size
+    gated_t, gated_t_abs = _load_conf()
+    nt = gated_t.size
 
     time_arr, resp_arr = forward_Fortran_TEM_log_time_aligned(
-        log_time_sample=_GATED_TIME_ABS,
+        log_time_sample=gated_t_abs,
         # 为什么把log_time_sample替换为_GATED_TIME_ABS和_GATED_TIME对正演效果没有任何影响？可以检查/Users/xiechushu/project/fortran_forward_log_sample_aligned/tem_forward_log_sample_aligned.f90
         rho=rho,
         hh=hh,
         nlayer=nlayer,
         nt=nt,
         npls=1,
-        t_st=float(_GATED_TIME[0]),
-        t_ed=float(_GATED_TIME[-1]),
+        t_st=float(gated_t[0]),
+        t_ed=float(gated_t[-1]),
         xr=OFFSET,
         hr=RX_HEIGHT,
         ht=TX_HEIGHT,
@@ -102,14 +110,15 @@ def tem_forward_numba(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
         hh[: thickness.size] = thickness
     hh[-1] = 10.0
 
+    gated_t, _ = _load_conf()
     return forwardprocess(
-        tlog_a=_GATED_TIME,
+        tlog_a=gated_t,
         rho=np.asarray(rho, dtype=np.float64),
         hh=np.asarray(hh, dtype=np.float64),
         ns_id=1,
         p1=_p1, p2=_p2, p3=_p3, p4=_p4,
         ht=TX_HEIGHT,
-        t_ed=float(_GATED_TIME[-1]),
+        t_ed=float(gated_t[-1]),
         xr=OFFSET, hr=RX_HEIGHT, rt=TX_RADIUS, rr=RX_RADIUS,
         nturn=TX_TURNS, nturn1=RX_TURNS, ic=3,
         hankel_filt=_HANKEL_FILT, frt_filt=_FRT_FILT,
