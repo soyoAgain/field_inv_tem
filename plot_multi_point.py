@@ -64,9 +64,9 @@ def _load_point(point_dir: Path, point_params: dict[str, dict]):
     if conf_path.exists():
         with open(conf_path) as f:
             conf = json.load(f)
-        thick = conf.get("LAYER_THICKNESS", 0.5)
+        thick = conf.get("LAYER_THICKNESS", LAYER_THICKNESS)
     else:
-        thick = 0.5
+        thick = LAYER_THICKNESS
     nlayer = len(rho)
     depths = np.cumsum(np.concatenate(([0.0], np.full(nlayer - 1, thick))))
     return {
