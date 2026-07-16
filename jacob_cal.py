@@ -7,7 +7,9 @@ Reference: Jacob2_fortran_ver_log_time_aligned in Jac_matrix.py, sign-corrected.
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -22,18 +24,15 @@ def _jacobian_serial(rho, thickness, forward_fn):
     """serial central-difference Jacobian."""
     rho = np.maximum(np.asarray(rho, dtype=float), 1e-30)
     nlayer = rho.size
-    nt = len(forward_fn(rho, thickness))
+    if nlayer == 0:
+        raise ValueError("rho must contain at least one layer")
     m_inv = np.log10(rho)
-    J = np.zeros((nt, nlayer))
     dm = JACOBIAN_STEP
     for j in range(nlayer):
-        m_neg, m_pos = m_inv.copy(), m_inv.copy()
-        m_neg[j] -= dm
-        m_pos[j] += dm
-        fn = forward_fn(10.0 ** m_neg, thickness)
-        fp = forward_fn(10.0 ** m_pos, thickness)
-        J[:, j] = (np.log10(np.maximum(np.abs(fp), 1e-30))
-                   - np.log10(np.maximum(np.abs(fn), 1e-30))) / (2.0 * dm)
+        col = _finite_difference_column(j, m_inv, dm, thickness, forward_fn)
+        if j == 0:
+            J = np.empty((col.size, nlayer), dtype=float)
+        J[:, j] = col
     return J
 
 
@@ -42,26 +41,38 @@ def jacobian(rho: np.ndarray, thickness: np.ndarray) -> np.ndarray:
     return _jacobian_serial(rho, thickness, tem_forward)
 
 
-def _worker_column(args):
-    """ProcessPool worker: compute one Jacobian column (2 forward calls)."""
-    j, m_inv, dm, rho_lin, thickness = args
+def _finite_difference_column(j, m_inv, dm, thickness, forward_fn):
+    """Compute one central finite-difference Jacobian column."""
     m_neg, m_pos = m_inv.copy(), m_inv.copy()
     m_neg[j] -= dm
     m_pos[j] += dm
-    fn = tem_forward_numba(10.0 ** m_neg, thickness)
-    fp = tem_forward_numba(10.0 ** m_pos, thickness)
-    return j, (np.log10(np.maximum(np.abs(fp), 1e-30))
-               - np.log10(np.maximum(np.abs(fn), 1e-30))) / (2.0 * dm)
+    fn = forward_fn(10.0 ** m_neg, thickness)
+    fp = forward_fn(10.0 ** m_pos, thickness)
+    return (np.log10(np.maximum(np.abs(fp), 1e-30))
+            - np.log10(np.maximum(np.abs(fn), 1e-30))) / (2.0 * dm)
+
+
+def _worker_columns(indices, m_inv, dm, thickness):
+    """Process worker: compute a batch of columns to reduce IPC overhead."""
+    return [
+        (int(j), _finite_difference_column(
+            int(j), m_inv, dm, thickness, tem_forward_numba
+        ))
+        for j in indices
+    ]
 
 
 def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
-                   parallel: bool = True) -> np.ndarray:
+                   parallel: bool = True,
+                   n_jobs: Optional[int] = None) -> np.ndarray:
     """Compute log-space central-difference Jacobian using Python+numba engine.
 
     Args:
         rho:       resistivity, shape (n_layers,), Ω·m
         thickness: layer thickness, shape (n_layers-1,), m
-        parallel:  use ProcessPoolExecutor for parallelism
+        parallel:  use joblib processes for parallelism
+        n_jobs:    process count; defaults to available logical CPUs, capped
+                   by the number of layers
 
     Returns:
         J: shape (n_gates, n_layers), ∂log10(response)/∂log10(rho)
@@ -73,17 +84,26 @@ def jacobian_numba(rho: np.ndarray, thickness: np.ndarray,
 
     rho = np.maximum(np.asarray(rho, dtype=float), 1e-30)
     nlayer = rho.size
+    if nlayer == 0:
+        raise ValueError("rho must contain at least one layer")
     m_inv = np.log10(rho)
     dm = JACOBIAN_STEP
-    nt = len(tem_forward_numba(rho, thickness))
+    workers = min(nlayer, n_jobs or (os.cpu_count() or 1))
+    if workers < 1:
+        raise ValueError("n_jobs must be at least 1")
 
-    tasks = [(j, m_inv, dm, rho, thickness) for j in range(nlayer)]
-    results = Parallel(n_jobs=min(nlayer, 10))(
-        delayed(_worker_column)(t) for t in tasks
+    column_batches = [
+        batch for batch in np.array_split(np.arange(nlayer), workers)
+        if batch.size
+    ]
+    batches = Parallel(n_jobs=workers)(
+        delayed(_worker_columns)(batch, m_inv, dm, thickness)
+        for batch in column_batches
     )
-    J = np.zeros((nt, nlayer))
-    for j, col in results:
-        J[:, j] = col
+    results = [item for batch in batches for item in batch]
+    J = np.empty((results[0][1].size, nlayer), dtype=float)
+    for j, column in results:
+        J[:, j] = column
     return J
 
 

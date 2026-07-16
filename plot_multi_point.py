@@ -14,9 +14,9 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import N_LAYERS, LAYER_THICKNESS
 
-RESULTS_DIR = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/results_MGS")
+RESULTS_DIR = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/结果存档/results_OCCAM2")
 OUT_DIR = RESULTS_DIR
-POINT_PARAMS_PATH = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/results_MGS/point_params_MGS.json")
+POINT_PARAMS_PATH = Path("/Users/xiechushu/project/EM_app/TEM_field_forward/point11/结果存档/results_OCCAM2/point_params.json")
 
 _cjk_font = None
 for name in ["PingFang SC", "Heiti SC", "STHeiti", "SimHei", "Arial Unicode MS"]:
