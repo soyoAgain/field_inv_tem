@@ -6,18 +6,20 @@ import os
 _DEFAULT_TARGET_POINT = "测点16"
 _DATA_ROOT = Path('/Users/xiechushu/project/EM_app/TEM_app/data/sy6')
 TARGET_POINT = os.environ.get("TARGET_POINT", _DEFAULT_TARGET_POINT)  # 当前处理的测点名称，用于日志及结果文件元数据
-SOURCE_DATA_PATH = os.environ.get(
-    "SOURCE_DATA_PATH",
-    str(_DATA_ROOT / TARGET_POINT),
-)  # 测点原始及降噪数据所在目录
+SOURCE_DATA_PATH = Path(
+    os.environ.get(
+        "SOURCE_DATA_PATH",
+        str(_DATA_ROOT / TARGET_POINT),
+    )
+).expanduser().resolve()  # 测点原始及降噪数据所在目录
 CURRENT_SCALE = 500.0  # 数据加载时使用的电流缩放系数
-DATA_FILE_STEM = "测点11_010"  # 未使用降噪数据时读取的原始数据文件名前缀
+DATA_FILE_STEM = os.environ.get("DATA_FILE_STEM")  # 可选炮号，例如测点11_013
 USE_DENOISED = True  # True=使用降噪信号，False=直接读取原始 npy 信号
 
 _point_params = json.loads(Path(__file__).resolve().with_name("point_params.json").read_text())
 if TARGET_POINT not in _point_params:
     raise KeyError(f"未在 point_params.json 中找到测点配置: {TARGET_POINT}")
-if not Path(SOURCE_DATA_PATH).exists():
+if not SOURCE_DATA_PATH.is_dir():
     raise FileNotFoundError(f"测点数据目录不存在: {SOURCE_DATA_PATH}")
 
 _p = _point_params[TARGET_POINT]
@@ -35,10 +37,10 @@ JACOBIAN_STEP = 4.89e-03  # 最优绝对扰动 (sweep, spike layer 5, rel_err ~1
 N_LAYERS = 50  # 反演模型总层数，包含最底部半空间
 LAYER_THICKNESS = 0.2  # 除最底层外各层的固定厚度，单位 m
 MAX_ITER = 50  # DLS 反演允许的最大迭代次数
-LAMBDA_INITIAL = 1  # DLS 正则化/阻尼参数的初始值
-CONSTRAINT_TYPE = "MGS"  # OCCAM、DLS、MGS
+LAMBDA_INITIAL = 100  # DLS 正则化/阻尼参数的初始值
+CONSTRAINT_TYPE = "OCCAM"  # OCCAM、DLS、MGS
 
-LAMBDA_DECREASE = 0.8  # 更新被接受后阻尼参数的乘法缩小系数
+LAMBDA_DECREASE = 0.99  # 更新被接受后阻尼参数的乘法缩小系数
 INITIAL_RHO = 1e-2     # 初始模型的均匀电阻率 (Ω·m)
 MGS_beta = 0.5*1e-1
 LAMBDA_INITIAL_MGS = 10

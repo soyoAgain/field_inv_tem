@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -12,11 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 _LOCAL = Path(__file__).resolve().parent
-sys_path = __import__("sys").path
-sys_path.insert(0, str(_LOCAL.parent))
-sys_path.insert(0, str(_LOCAL))
+sys.path.insert(0, str(_LOCAL))
 
-from data_loader import discover_sy6_records, DEFAULT_SY6_DIR
+from data_loader import select_sy6_record
 
 _cjk_font = None
 for name in ["PingFang SC", "Heiti SC", "STHeiti", "SimHei", "Arial Unicode MS"]:
@@ -37,7 +36,6 @@ from config import (
 FIG_DIR = RESULTS_DIR / "fig"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 CONF_PATH = RESULTS_DIR / "data_conf.json"
-DATA_DIR = Path(SOURCE_DATA_PATH)
 
 # ---- Load waveform data ----
 with open(CONF_PATH, encoding="utf-8") as fh:
@@ -46,20 +44,23 @@ t_origin = conf["wave_start_time_real_axis"][0]  # pulse start, matches forward 
 
 # ---- Load raw data ----
 if USE_DENOISED:
-    from data_loader import discover_sy6_records, DEFAULT_SY6_DIR
-    from pathlib import Path as _Path
-    shot_name = _Path(SOURCE_DATA_PATH).name
-    records = discover_sy6_records(DEFAULT_SY6_DIR)
-    rec = [r for r in records if r.point == shot_name and r.denoised_decay_path][0]
-    loaded = rec.load(current_scale=CURRENT_SCALE)
+    source_shot = conf.get("source_shot", DATA_FILE_STEM)
+    rec = select_sy6_record(
+        SOURCE_DATA_PATH,
+        shot=source_shot,
+        require_denoised_full=True,
+    )
+    loaded = rec.load()
     t_full = loaded.time  # full time axis (0-250ms)
     if loaded.denoised_full is not None:
         rx_full = loaded.denoised_full
     else:
         raise SystemExit("未找到已降噪信号，程序已退出，禁止对原始信号抽道。")
 else:
-    t_full = np.load(DATA_DIR / f"{DATA_FILE_STEM}_t.npy")
-    rx_full = np.load(DATA_DIR / f"{DATA_FILE_STEM}_rx.npy")
+    rec = select_sy6_record(SOURCE_DATA_PATH, shot=DATA_FILE_STEM)
+    loaded = rec.load()
+    t_full = loaded.time
+    rx_full = loaded.rx
 
 # ---- Log-spaced time gates (absolute acquisition time) ----
 t_gate_rel = np.logspace(np.log10(TIME_GATE_START), np.log10(TIME_GATE_END), TIME_GATE_COUNT)
