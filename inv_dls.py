@@ -67,7 +67,7 @@ for i in range(max_iter):
     if np.any(np.isnan(m_iter)):
         print("模型参数出现NaN，终止反演。")
         break
-    Jk = jacobian_numba(rho_iter, hh_true)
+    Jk = jacobian_numba(rho_iter, hh_true,n_jobs= 10)
     Fm = tem_forward(rho_iter, hh_true)
     # 出现负值，终止反演
     if np.any(Fm <= 0):
